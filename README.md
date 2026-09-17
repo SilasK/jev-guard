@@ -5,7 +5,10 @@
   <img src="assets/works-with.svg" alt="Works with Claude Code, Codex, Copilot CLI, Gemini CLI, Cursor, pi, OpenCode, ACP">
 </div>
 
-https://github.com/leepokai/jev-guard/raw/main/assets/launch.mp4
+<div align="center">
+  <a href="https://github.com/leepokai/jev-guard/raw/main/assets/launch.mp4"><img src="assets/launch-poster.jpg" width="720" alt="33-second launch video: every tool call risk-scored, prompt injection flagged"></a>
+  <br><sub>▶ 33 s launch video</sub>
+</div>
 
 Two checks, every tool call:
 
