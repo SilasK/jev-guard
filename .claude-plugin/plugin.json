@@ -1,0 +1,7 @@
+{
+  "name": "jev-guard",
+  "version": "0.1.0",
+  "description": "Prompt-injection and dangerous-action guard for coding agents, powered by Jev.",
+  "author": { "name": "leepokai" },
+  "license": "MIT"
+}

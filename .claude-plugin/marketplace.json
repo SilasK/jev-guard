@@ -1,0 +1,7 @@
+{
+  "name": "jev-guard",
+  "owner": { "name": "leepokai" },
+  "plugins": [
+    { "name": "jev-guard", "source": "./", "description": "Prompt-injection and dangerous-action guard for coding agents, powered by Jev." }
+  ]
+}

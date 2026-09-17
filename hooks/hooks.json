@@ -1,0 +1,11 @@
+{
+  "description": "jev-guard: assess every tool call before it runs; scan every tool result for AI-directed instructions.",
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": ".*", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/cli.js\" hook", "timeout": 30 }] }
+    ],
+    "PostToolUse": [
+      { "matcher": ".*", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/cli.js\" hook", "timeout": 30 }] }
+    ]
+  }
+}
