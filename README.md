@@ -5,6 +5,8 @@
   <img src="assets/works-with.svg" alt="Works with Claude Code, Codex, Copilot CLI, Gemini CLI, Cursor, pi, OpenCode, ACP">
 </div>
 
+https://github.com/leepokai/jev-guard/raw/main/assets/launch.mp4
+
 Two checks, every tool call:
 
 - **Before a tool runs** — Jev scores how much harm the exact call could do. Destructive calls are **denied**; risky ones **require the user's approval**; the rest pass silently.
@@ -137,6 +139,8 @@ jev-guard key <api key>                 Save the key to ~/.jev-guard/config.json
 ```bash
 npm test          # node:test with a fake Jev; also spins up the ACP proxy against a fake agent
 ```
+
+The 33-second launch video is a [Remotion](https://www.remotion.dev/) composition in `video/` (`cd video && npm i && npm run render` → `assets/launch.mp4`).
 
 Layout: `src/jev.js` (one fetch, two backends) · `src/guard.js` (questions + policy) · `src/hook.js` (Claude Code / Codex / Copilot / Gemini / Cursor) · `src/acp.js` (proxy) · `src/opencode.js` (OpenCode plugin) · `extensions/jev-guard.ts` (pi) · `hooks/` (plugin hook manifests).
 
