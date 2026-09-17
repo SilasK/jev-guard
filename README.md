@@ -140,7 +140,10 @@ Results shorter than 200 characters and results of local edit/search tools are s
 | `JEV_GUARD_DENY_SCORE` | `2.5` | risk position at which a call is denied |
 | `JEV_GUARD_ASK_SCORE` | `1.5` | risk position at which approval is required |
 | `JEV_GUARD_ASK_P` | `0.75` | approval probability at which approval is required |
-| `JEV_GUARD_INJECT_P` | `0.6` | directed probability at which content is flagged (also the instruction-file threshold) |
+| `JEV_GUARD_INJECT_P` | `0.6` | directed probability at which tool-result content is flagged |
+| `JEV_GUARD_SKILL_P` | `0.8` | instruction-file probability that flags `unrelated_side_effects` |
+| `JEV_GUARD_SKILL_SERIOUS_P` | `0.45` | instruction-file probability that flags exfiltration / covert execution / override / canary |
+| `JEV_GUARD_TIMEOUT_MS` | `20000` | total time budget per Jev call, retries included (hosts kill hooks at ~30 s) |
 | `JEV_GUARD_UNTRUSTED_P` | `0.7` | from-untrusted probability that denies a call outright |
 | `JEV_GUARD_USER_P` | `0.85` | user-requested probability that turns ask into allow |
 | `JEV_GUARD_SESSIONS` | `~/.jev-guard/sessions` | per-session memory directory |

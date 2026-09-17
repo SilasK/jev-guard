@@ -3,7 +3,8 @@
 ## 0.3.0 — 2026-09-18
 - Context: every decision now sees the user's recent prompts, the agent's stated intent, recent decisions and flagged content (`src/context.js`, `src/session.js`). Two new questions: `user_requested` (turns ask into allow when the user asked for exactly that) and `from_untrusted` (denies a call that carries out an instruction planted in something the agent read). Prompt hooks on every host feed the memory; pi, OpenCode and ACP read the session directly.
 - Instruction files: skills, plugins, rules and `CLAUDE.md`/`AGENTS.md` are checked with their own questions (`INSTRUCTION_QUESTIONS`) at session start, on `InstructionsLoaded`, when a `Skill` runs, when the agent reads one, and via `jev-guard scan-skills`; results cached by content hash.
-- Third-party skill/plugin/MCP installs count as level-2 (ask) actions.
+- Third-party skill/plugin/MCP installs count as level-2 (ask) actions. Instruction-file thresholds: `JEV_GUARD_SKILL_P` (0.8, unrelated side effects) and `JEV_GUARD_SKILL_SERIOUS_P` (0.45, the serious kinds); answers cached by content hash and shared by the sweep and the read/Skill hooks.
+- Jev calls retry on 429/5xx and network errors inside one time budget (`JEV_GUARD_TIMEOUT_MS`, 20 s) so a hook never outlives its host's timeout.
 - OpenCode: expose `main` and `exports["./server"]`, which is what OpenCode's npm plugin loader resolves; `"plugin": ["jev-guard"]` now works from the registry.
 - `check` / `scan` exit 3 with a one-line error instead of a stack trace when Jev is unreachable.
 

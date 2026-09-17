@@ -1,7 +1,8 @@
 // OpenCode plugin. `jev-guard install opencode` drops a one-line shim into ~/.config/opencode/plugins/ that re-exports this.
 // tool.execute.before throws to block; permission.ask (only fires for tools you set to "ask" in opencode.json)
 // lets jev-guard auto-approve the safe calls and keep the prompt for the risky ones; tool.execute.after flags results.
-import { assessAction, scanContent, scanInstructions, preview, excerpt, INSTRUCTION_FILE } from "./guard.js";
+import { assessAction, scanContent, preview, excerpt, INSTRUCTION_FILE } from "./guard.js";
+import { scanInstructionsCached } from "./skills.js";
 import { buildContext, messagesFrom } from "./context.js";
 import { readSession, remember } from "./session.js";
 
@@ -40,7 +41,7 @@ export const JevGuard = async ({ client, directory }) => {
     "tool.execute.after": async (input, output) => {
       const source = input.args?.url ?? input.args?.filePath ?? input.args?.path;
       const r = await (source && INSTRUCTION_FILE.test(source)
-        ? scanInstructions({ text: output.output, source })
+        ? scanInstructionsCached({ text: output.output, source })
         : scanContent({ text: output.output, tool: input.tool, source: preview(input.args, 120), task: readSession(input.sessionID).prompts.at(-1)?.text })
       ).catch(() => null);
       if (r?.flagged) remember(input.sessionID, "flags", { kind: r.kind, source, tool: input.tool, p: +r.p.toFixed(2), excerpt: excerpt(output.output), reported: true });

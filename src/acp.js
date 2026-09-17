@@ -4,7 +4,8 @@
 // back. Tools the agent runs on its own (its built-in web fetch, say) never pass through here and are not covered.
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { assessAction, scanContent, scanInstructions, preview, excerpt, INSTRUCTION_FILE, MIN_SCAN_CHARS } from "./guard.js";
+import { assessAction, scanContent, preview, excerpt, INSTRUCTION_FILE, MIN_SCAN_CHARS } from "./guard.js";
+import { scanInstructionsCached } from "./skills.js";
 import { buildContext } from "./context.js";
 import { remember } from "./session.js";
 
@@ -89,7 +90,7 @@ export function runProxy(cmd, args, { stdin = process.stdin, stdout = process.st
     const source = req?.params?.path ?? method;
     try {
       const r = source !== method && INSTRUCTION_FILE.test(source)
-        ? await scanInstructions({ text, source }, opts)
+        ? await scanInstructionsCached({ text, source }, opts)
         : await scanContent({ text, tool: method, source }, opts);
       if (r?.flagged) {
         remember(req?.params?.sessionId, "flags", { kind: r.kind, source, tool: method, p: +r.p.toFixed(2), excerpt: excerpt(text), reported: true });

@@ -3,10 +3,10 @@
 // The event name on stdin picks the dialect; `--agent codex|copilot` only matters where Claude-shaped agents differ.
 // Every event also feeds the per-session memory, so a tool call is judged with the user's recent words, the agent's
 // stated intent, and any untrusted content flagged earlier in the same session.
-import { assessAction, scanContent, scanInstructions, collectText, preview, excerpt, INSTRUCTION_FILE } from "./guard.js";
+import { assessAction, scanContent, collectText, preview, excerpt, INSTRUCTION_FILE } from "./guard.js";
 import { buildContext } from "./context.js";
 import { readSession, remember, markReported, update } from "./session.js";
-import { findInstructionFiles, projectRoots, scanFiles } from "./skills.js";
+import { findInstructionFiles, projectRoots, scanFiles, scanInstructionsCached } from "./skills.js";
 
 // Which Claude-shaped host sent this? Copilot CLI stamps an ISO `timestamp`, Codex a `turn_id`; Claude Code has neither.
 export function detectAgent(input) {
@@ -36,7 +36,7 @@ export async function handleHook(input, { agent, env = process.env, fetchImpl } 
     const source = sourceOf(toolInput);
     const instructions = /^skill$/i.test(tool ?? "") || (source && INSTRUCTION_FILE.test(source));
     const task = readSession(sessionId).prompts.at(-1)?.text;
-    const r = instructions ? await scanInstructions({ text, source: source ?? tool }, opts) : await scanContent({ text, tool, source, task }, opts);
+    const r = instructions ? await scanInstructionsCached({ text, source: source ?? tool }, opts) : await scanContent({ text, tool, source, task }, opts);
     if (r?.flagged) remember(sessionId, "flags", { kind: r.kind, source, tool, p: +r.p.toFixed(2), excerpt: excerpt(text), reported: true });
     return r;
   };

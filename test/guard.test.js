@@ -248,11 +248,17 @@ test("scan-skills: sweeps instruction files, caches by hash, exits 2 when flagge
   const second = await scanFiles(files, { env, fetchImpl });
   assert.ok(second.every((r) => r.cached));
   assert.ok(JSON.stringify(JSON.parse(readFileSync(join(home, "cache.json"), "utf8"))).includes("exfiltration"));
-  const { judgeInstructions } = await import("../src/guard.js");
-  assert.equal(judgeInstructions("unrelated_side_effects", 0.73), false);   // the gstack false-positive band
-  assert.equal(judgeInstructions("unrelated_side_effects", 0.85), true);
-  assert.equal(judgeInstructions("canary", 0.51), true);
-  assert.equal(judgeInstructions("clean", 0.99), false);
+  const { judgeInstructions, thresholds } = await import("../src/guard.js");
+  const th = thresholds(env);  // not the developer's shell
+  assert.equal(judgeInstructions("unrelated_side_effects", 0.73, th), false);   // the gstack false-positive band
+  assert.equal(judgeInstructions("unrelated_side_effects", 0.85, th), true);
+  assert.equal(judgeInstructions("canary", 0.51, th), true);
+  assert.equal(judgeInstructions("clean", 0.99, th), false);
+  assert.equal(judgeInstructions(undefined, 0.9, th), true);                   // no kind at all is not a pass
+  // a cache hit carries only Jev's answer; verdict and message are rebuilt
+  const { scanInstructionsCached } = await import("../src/skills.js");
+  const again = await scanInstructionsCached({ text: readFileSync(files[0], "utf8"), source: files[0] }, { env, fetchImpl });
+  assert.equal(again.cached, true); assert.equal(again.flagged, true); assert.match(again.message, /would not expect/);
 
   // Claude-style transcript: tool results are not user words
   const t = join(home, "t.jsonl");
@@ -261,4 +267,26 @@ test("scan-skills: sweeps instruction files, caches by hash, exits 2 when flagge
     JSON.stringify({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "Pushing now." }, { type: "tool_use", name: "Bash" }] } })].join("\n"));
   assert.deepEqual(readTranscript(t), { user: ["please force push"], assistant: ["Pushing now."] });
   execFileSync; // (CLI exit codes are covered by the install test's process spawn pattern)
+});
+
+test("ask: retries 5xx and network errors, gives up after three tries, never outlives its budget", async () => {
+  const { ask } = await import("../src/jev.js");
+  const q = { x: { type: "noul", instructions: "?" } };
+  let calls = 0;
+  const flaky = async () => {
+    calls++;
+    if (calls === 1) throw Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+    if (calls === 2) return { ok: false, status: 503, text: async () => "overloaded" };
+    return { ok: true, json: async () => ({ answers: { x: { type: "noul", noul: 0.5 } } }) };
+  };
+  assert.equal((await ask("s", q, { env, fetchImpl: flaky })).x.p, 0.5);
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(ask("s", q, { env, fetchImpl: async () => { calls++; return { ok: false, status: 503, text: async () => "down" }; } }), /HTTP 503/);
+  assert.equal(calls, 3);
+  // AbortSignal.timeout uses an unref'd timer; a real fetch keeps the loop alive, this fake doesn't, so hold it open
+  const keep = setTimeout(() => {}, 5000);
+  const hang = (_u, o) => new Promise((_, rej) => o.signal.addEventListener("abort", () => rej(o.signal.reason)));
+  await assert.rejects(ask("s", q, { env, fetchImpl: hang, timeoutMs: 60 }), /timeout|abort/i);
+  clearTimeout(keep);
 });

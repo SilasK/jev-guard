@@ -26,11 +26,15 @@ export function readConfig(env = process.env) {
 }
 
 /** @returns {Promise<Record<string, {p?: number, choice?: string, score?: number, probabilities?: Record<string, number>, confidence?: number}>>} */
-export async function ask(state, questions, { env = process.env, fetchImpl = fetch, signal, timeoutMs = 20_000 } = {}) {
+export async function ask(state, questions, { env = process.env, fetchImpl = fetch, signal, timeoutMs } = {}) {
   const b = backend(env);
   if (!b) throw new Error("no credentials: run `jev-guard key <key>` or set JEV_API_KEY / AI_GATEWAY_API_KEY");
   const gw = b.kind === "gateway";
   const q = gw ? mapValues(questions, (x) => (x.type === "noul" ? { ...x, type: "boolean" } : x)) : questions;
+  // One budget for the whole call, retries included: every host kills a hook at ~30 s, and a hook that dies
+  // never reaches the fail-closed branch. Default 20 s leaves room for process start-up.
+  const budget = AbortSignal.timeout(timeoutMs ?? +(env.JEV_GUARD_TIMEOUT_MS || 20_000));
+  const abort = signal ? AbortSignal.any([signal, budget]) : budget;
   const request = () => fetchImpl(gw ? GATEWAY_URL : TYPESAFE_URL, {
     method: "POST",
     headers: gw
@@ -40,12 +44,18 @@ export async function ask(state, questions, { env = process.env, fetchImpl = fet
     body: JSON.stringify(gw
       ? { state, questions: q, providerOptions: { gateway: { zeroDataRetention: true } } }
       : { state, model: env.JEV_MODEL ?? "jev-latest", questions: q }),
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
+    signal: abort,
   });
-  let res = await request();
-  for (let attempt = 0; (res.status === 429 || res.status >= 500) && attempt < 2; attempt++) {  // overloaded / rate-limited: brief backoff
-    await new Promise((r) => setTimeout(r, 600 * 2 ** attempt));
-    res = await request();
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await request();
+      if (res.ok || (res.status !== 429 && res.status < 500) || attempt === 2) break;
+      await res.text().catch(() => {});  // release the socket before retrying
+    } catch (err) {
+      if (abort.aborted || attempt === 2) throw err;  // network blips (ECONNRESET, DNS) retry; aborts and the last attempt don't
+    }
+    await sleep(600 * 2 ** attempt, abort);
   }
   if (!res.ok) throw new Error(`${b.kind} HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const body = await res.json();
@@ -54,6 +64,15 @@ export async function ask(state, questions, { env = process.env, fetchImpl = fet
     p: a.noul ?? a.probability, choice: a.choice, score: a.score, probabilities: a.probabilities,
     confidence: a.confidence ?? conf[id],
   }));
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    const t = setTimeout(() => { signal.removeEventListener("abort", onAbort); resolve(); }, ms);
+    const onAbort = () => { clearTimeout(t); reject(signal.reason); };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function mapValues(obj, fn) {
