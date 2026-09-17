@@ -14,36 +14,36 @@ Works with **Claude Code**, **Codex**, **GitHub Copilot CLI**, **Gemini CLI**, *
 
 Why Jev instead of an LLM: a call costs ~$0.00004 and returns in well under a second with calibrated probabilities, so you can afford to run it on *every* tool call and result and threshold the answer in code.
 
-## Quick start
+## Install
 
-```bash
-git clone https://github.com/leepokai/jev-guard ~/.jev-guard
-node ~/.jev-guard/src/cli.js key "…"        # TypeSafe key from console.typesafe.ai, or a vck_… Vercel AI Gateway key
-
-node ~/.jev-guard/src/cli.js check Bash '{"command":"rm -rf ~/"}'
-# DENY  jev-guard blocked this call (risk 3.0/3, approval p=0.98, confidence 0.99): Bash rm -rf ~/ …
-```
-
-### Where the key lives
-
-`jev-guard key` writes `~/.jev-guard/config.json` (mode 0600). Every adapter reads that file, so it works for GUI hosts (Cursor, Zed) that never see your shell profile. Environment variables win when present: `JEV_API_KEY`, `AI_GATEWAY_API_KEY`, or `VERCEL_OIDC_TOKEN` (from `vercel env pull`, expires in ~12 h). The key is sent only to `api.typesafe.ai` or `ai-gateway.vercel.sh`, never stored by jev-guard anywhere else, and never given to the coding agent.
-
-Then register it with your agent:
+Pick your agent; every row is one command, then give it a key.
 
 | Agent | Install | Before a tool runs | After it returns |
 | --- | --- | --- | --- |
-| Claude Code | `/plugin marketplace add leepokai/jev-guard` → `/plugin install jev-guard@jev-guard`, or `install claude` | deny · **ask** prompt | flag |
-| Codex | `install codex`, then `/hooks` to trust | deny · ask → warning (Codex has no `ask` yet) | flag |
-| Copilot CLI | `install copilot` | deny · **ask** prompt (`deny` in cloud agent) | flag |
-| Gemini CLI | `install gemini` | deny · ask → warning (no `ask` in `BeforeTool`) | flag |
-| Cursor | `install cursor` | deny · **ask** for shell and MCP (`preToolUse` can't ask) | flag |
-| pi | `pi install git:github.com/leepokai/jev-guard`, or `install pi` | block · **confirm dialog** | flag |
-| OpenCode | `install opencode` | throw on deny · **ask** via `permission.ask` for tools you set to `"ask"` | flag |
+| Claude Code | `/plugin marketplace add leepokai/jev-guard` then `/plugin install jev-guard@jev-guard` | deny · **ask** prompt | flag |
+| Codex | `codex plugin marketplace add leepokai/jev-guard`, install from the plugin browser, `/hooks` to trust | deny · ask → warning (Codex has no `ask` yet) | flag |
+| Copilot CLI | `copilot plugin marketplace add leepokai/jev-guard` then `copilot plugin install jev-guard@jev-guard` | deny · **ask** prompt (`deny` in cloud agent) | flag |
+| Gemini CLI | `gemini extensions install https://github.com/leepokai/jev-guard` — it asks for the key on install | deny · ask → warning (no `ask` in `BeforeTool`) | flag |
+| Cursor | plugin manifest included for marketplaces; solo users: `jev-guard install cursor` | deny · **ask** for shell and MCP (`preToolUse` can't ask) | flag |
+| pi | `pi install npm:jev-guard` (or `git:github.com/leepokai/jev-guard`) | block · **confirm dialog** | flag |
+| OpenCode | `"plugin": ["jev-guard"]` in `opencode.json` | throw on deny · **ask** via `permission.ask` for tools you set to `"ask"` | flag |
 | ACP | editor runs `jev-guard acp -- <agent>` | reject · **permission request** for `terminal/create`, `fs/write_text_file` | flag `fs/read_text_file`, `terminal/output` |
 
-(`install` is short for `node ~/.jev-guard/src/cli.js install`.) Claude Code and pi can pull the plugin straight from GitHub; the other targets register hooks that point at your local clone, so keep it where you cloned it.
+Everything else goes through the npm package:
 
-`install` merges into that agent's user config (`~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.copilot/hooks/jev-guard.json`, `~/.gemini/settings.json`, `~/.cursor/hooks.json`, `~/.pi/agent/settings.json`, `~/.config/opencode/plugins/jev-guard.js`) and is idempotent. The hook itself is one script: the event name on stdin tells it which dialect it is speaking.
+```bash
+npm i -g jev-guard
+jev-guard key "…"                    # TypeSafe key from console.typesafe.ai, or a vck_… Vercel AI Gateway key
+jev-guard install claude|codex|copilot|gemini|cursor|pi|opencode   # writes hooks into that agent's user config
+jev-guard check Bash '{"command":"rm -rf ~/"}'
+# DENY  jev-guard blocked this call (risk 3.0/3, approval p=0.98, confidence 0.99): Bash rm -rf ~/ …
+```
+
+`install` is idempotent and writes the absolute path of the current `node`, so hosts launched from a Dock (Cursor, Zed) work too. One hook script serves every host: it recognises the payload it is given (Claude Code, Codex, Copilot, Gemini, Cursor) and answers in that host's format.
+
+### Where the key lives
+
+`jev-guard key` writes `~/.jev-guard/config.json` (mode 0600). Every adapter reads that file, so it works for GUI hosts that never see your shell profile. Environment variables win when present: `JEV_API_KEY`, `AI_GATEWAY_API_KEY`, or `VERCEL_OIDC_TOKEN` (from `vercel env pull`, expires in ~12 h). Gemini CLI asks for the key when you install the extension and stores it in its keychain. The key is sent only to `api.typesafe.ai` or `ai-gateway.vercel.sh`, never stored anywhere else by jev-guard, and never given to the coding agent.
 
 ### ACP example (Zed)
 

@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "beforeShellExecution": [{ "command": "node ./src/cli.js hook", "timeout": 30 }],
+    "beforeMCPExecution": [{ "command": "node ./src/cli.js hook", "timeout": 30 }],
+    "preToolUse": [{ "command": "node ./src/cli.js hook", "matcher": "Write|Delete", "timeout": 30 }],
+    "postToolUse": [{ "command": "node ./src/cli.js hook", "timeout": 30 }]
+  }
+}

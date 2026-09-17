@@ -1,9 +1,11 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "jev-guard",
   "version": "0.2.0",
   "description": "Prompt-injection and dangerous-action guard for coding agents, powered by Jev.",
   "author": { "name": "leepokai" },
+  "repository": "https://github.com/leepokai/jev-guard",
   "license": "MIT",
-  "keywords": ["jev", "security", "prompt-injection", "hooks"]
+  "keywords": ["security", "prompt-injection", "hooks", "jev"],
+  "logo": "assets/icon.svg",
+  "hooks": "./hooks/cursor.json"
 }

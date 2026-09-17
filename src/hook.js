@@ -3,7 +3,15 @@
 // The event name on stdin picks the dialect; `--agent codex|copilot` only matters where Claude-shaped agents differ.
 import { assessAction, scanContent, collectText, preview } from "./guard.js";
 
-export async function handleHook(input, { agent = "claude", env = process.env, fetchImpl } = {}) {
+// Which Claude-shaped host sent this? Copilot CLI stamps an ISO `timestamp`, Codex a `turn_id`; Claude Code has neither.
+export function detectAgent(input) {
+  if (typeof input.timestamp === "string") return "copilot";
+  if (typeof input.turn_id === "string" && typeof input.model === "string") return "codex";
+  return "claude";
+}
+
+export async function handleHook(input, { agent, env = process.env, fetchImpl } = {}) {
+  agent ??= detectAgent(input);
   const opts = { env, fetchImpl };
   const event = input.hook_event_name;
   const assess = (tool, toolInput) => assessAction({ tool, input: toolInput, cwd: input.cwd, agent }, opts);
@@ -16,17 +24,18 @@ export async function handleHook(input, { agent = "claude", env = process.env, f
     if (event === "PermissionRequest") {
       return r.level === "deny" ? { hookSpecificOutput: { hookEventName: event, decision: { behavior: "deny", message: r.message } } } : null;
     }
-    if (agent === "copilot") return { permissionDecision: r.level, permissionDecisionReason: r.message };
-    if (r.level === "deny") return { hookSpecificOutput: { hookEventName: event, permissionDecision: "deny", permissionDecisionReason: r.message } };
+    const decision = (d) => ({ hookSpecificOutput: { hookEventName: event, permissionDecision: d, permissionDecisionReason: r.message } });
+    if (agent === "copilot") return { permissionDecision: r.level, permissionDecisionReason: r.message, ...decision(r.level) };
+    if (r.level === "deny") return decision("deny");
     if (agent === "codex") {  // ask unsupported (Codex 0.154): warn the model and the user, let the call proceed
       return { systemMessage: r.message, hookSpecificOutput: { hookEventName: event, additionalContext: `${r.message}. Confirm with the user before running this or anything similar.` } };
     }
-    return { hookSpecificOutput: { hookEventName: event, permissionDecision: "ask", permissionDecisionReason: r.message } };
+    return decision("ask");
   }
   if (event === "PostToolUse") {
     const r = await scan(collectText(input.tool_response ?? input.tool_result), input.tool_name, input.tool_input);
     if (!r?.flagged) return null;
-    if (agent === "copilot") return { additionalContext: r.message };
+    if (agent === "copilot") return { additionalContext: r.message, hookSpecificOutput: { hookEventName: event, additionalContext: r.message } };
     return { decision: "block", reason: r.message, systemMessage: r.message };
   }
 
@@ -64,8 +73,8 @@ export async function handleHook(input, { agent = "claude", env = process.env, f
 const CURSOR_PERMISSION_EVENTS = new Set(["beforeShellExecution", "beforeMCPExecution", "preToolUse"]);
 
 export async function main(argv = process.argv.slice(2), stdin = process.stdin, stdout = process.stdout, env = process.env) {
-  const agent = argv[argv.indexOf("--agent") + 1] || "claude";
   const input = JSON.parse(await readAll(stdin));
+  const agent = argv.includes("--agent") ? argv[argv.indexOf("--agent") + 1] : detectAgent(input);
   const event = input.hook_event_name;
   let out = null;
   try {

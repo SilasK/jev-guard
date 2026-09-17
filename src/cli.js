@@ -9,8 +9,8 @@ const [cmd, ...rest] = process.argv.slice(2);
 
 const USAGE = `jev-guard — prompt-injection and dangerous-action guard for coding agents, powered by Jev
 
-  jev-guard hook [--agent codex|copilot]  Command hook (JSON on stdin → JSON on stdout); Claude Code, Codex, Copilot CLI,
-                                          Gemini CLI and Cursor payloads are told apart by their event name
+  jev-guard hook [--agent codex|copilot]  Command hook (JSON on stdin → JSON on stdout) for Claude Code, Codex, Copilot CLI,
+                                          Gemini CLI and Cursor; the host is detected from the payload, --agent overrides
   jev-guard acp -- <agent command...>     ACP proxy: jev-guard acp -- claude-agent-acp
   jev-guard check <tool> '<json input>'   Assess one tool call, e.g. check Bash '{"command":"rm -rf /"}'
   jev-guard scan [file]                   Scan a file (or stdin) for AI-directed instructions
@@ -69,8 +69,10 @@ switch (cmd) {
 }
 
 function install(target) {
+  if (ROOT.includes("/_npx/") || ROOT.includes("\\_npx\\")) die("running from the npx cache, which gets pruned; install with `npm i -g jev-guard` (or git clone) and run install from there");
   const cli = join(ROOT, "src", "cli.js");
-  const cmd = (extra = "") => `node "${cli}" hook${extra}`;
+  // Absolute node path: GUI hosts (Cursor, Zed) launched from a Dock don't have nvm/volta on PATH.
+  const cmd = (extra = "") => `"${process.execPath}" "${cli}" hook${extra}`;
   const notOurs = (list) => (list ?? []).filter((g) => !JSON.stringify(g).includes("jev-guard"));
   const home = homedir();
   let file, cfg, note = "";
