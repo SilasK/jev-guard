@@ -13,8 +13,8 @@
 </div>
 
 <div align="center">
-  <a href="https://github.com/leepokai/jev-guard/raw/main/assets/launch.mp4"><img src="assets/launch-poster.jpg" width="720" alt="33-second launch video: every tool call risk-scored, prompt injection flagged"></a>
-  <br><sub>▶ 49 s launch video, with voiceover</sub>
+  <a href="https://github.com/leepokai/jev-guard/raw/main/assets/launch.mp4"><img src="assets/launch-poster.jpg" width="720" alt="78-second launch video: every tool call risk-scored with session context, prompt injection flagged, skills checked"></a>
+  <br><sub>▶ 78 s launch video, with voiceover</sub>
 </div>
 
 Three checks, with the session's context:
