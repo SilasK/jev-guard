@@ -7,7 +7,7 @@
 
 <div align="center">
   <a href="https://github.com/leepokai/jev-guard/raw/main/assets/launch.mp4"><img src="assets/launch-poster.jpg" width="720" alt="33-second launch video: every tool call risk-scored, prompt injection flagged"></a>
-  <br><sub>▶ 33 s launch video</sub>
+  <br><sub>▶ 49 s launch video, with voiceover</sub>
 </div>
 
 Two checks, every tool call:
@@ -143,7 +143,7 @@ jev-guard key <api key>                 Save the key to ~/.jev-guard/config.json
 npm test          # node:test with a fake Jev; also spins up the ACP proxy against a fake agent
 ```
 
-The 33-second launch video is a [Remotion](https://www.remotion.dev/) composition in `video/` (`cd video && npm i && npm run render` → `assets/launch.mp4`).
+The launch video is a [Remotion](https://www.remotion.dev/) composition in `video/`: `cd video && npm i && npm run render` → `assets/launch.mp4`. The narration is generated from `video/vo.json` with `npm run vo` (edge-tts via `uvx`, no key), one clip per scene; scene lengths and the typing cues in `src/Launch.tsx` are timed to those clips.
 
 Layout: `src/jev.js` (one fetch, two backends) · `src/guard.js` (questions + policy) · `src/hook.js` (Claude Code / Codex / Copilot / Gemini / Cursor) · `src/acp.js` (proxy) · `src/opencode.js` (OpenCode plugin) · `extensions/jev-guard.ts` (pi) · `hooks/` (plugin hook manifests).
 

@@ -1,9 +1,10 @@
 import React from "react";
-import { AbsoluteFill, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 
 export const FPS = 30;
 const S = (sec: number) => Math.round(sec * FPS);
-const SCENES = { title: S(3), before: S(9.5), after: S(8), works: S(6), install: S(6.5) };
+// Scene lengths follow the voiceover clips in public/vo (see vo.json); visuals inside are timed to the narration.
+const SCENES = { title: S(4.8), before: S(14.4), after: S(12.8), works: S(9), install: S(7.5) };
 export const DURATION = Object.values(SCENES).reduce((a, b) => a + b, 0);
 
 const BG = "#0B1220", BLUE = "#2563EB", INK = "#0F172A", FG = "#E2E8F0", DIM = "#94A3B8";
@@ -60,20 +61,20 @@ const Before = () => (
     <Header kicker="Before a tool runs" title="Every call is risk-scored. Destructive ones never run." />
     <Pop delay={8} style={{ position: "absolute", top: 300, left: 140, right: 140, background: INK, borderRadius: 24, padding: "44px 56px", fontFamily: MONO, fontSize: 34, color: FG, lineHeight: 1.35 }}>
       <div style={{ display: "flex", gap: 10, marginBottom: 28 }}>{[RED, AMBER, GREEN].map((c) => <div key={c} style={{ width: 16, height: 16, borderRadius: 8, background: c }} />)}</div>
-      <div><span style={{ color: DIM }}>$ </span><Typed text="ls -la" start={S(0.6)} /></div>
-      <Verdict delay={S(1.3)} color={GREEN} label="ALLOW" detail="risk 0.0 / 3 · no prompt, no noise" />
-      <div><span style={{ color: DIM }}>$ </span><Typed text="git push --force origin main" start={S(2.6)} /></div>
-      <Verdict delay={S(4.0)} color={AMBER} label="ASK" detail="risk 2.0 / 3 · approval p=0.96 → the user gets a prompt" />
-      <div><span style={{ color: DIM }}>$ </span><Typed text="rm -rf ~/" start={S(5.4)} /></div>
-      <Verdict delay={S(6.4)} color={RED} label="DENY" detail="risk 3.0 / 3 · confidence 0.99 → blocked before it runs" />
-      <Pop delay={S(7.6)} style={{ color: DIM, fontSize: 26, marginTop: 6 }}>≈ 0.6 s and $0.00004 per call — cheap enough to check every single one.</Pop>
+      <div><span style={{ color: DIM }}>$ </span><Typed text="ls -la" start={S(2.6)} /></div>
+      <Verdict delay={S(3.3)} color={GREEN} label="ALLOW" detail="risk 0.0 / 3 · no prompt, no noise" />
+      <div><span style={{ color: DIM }}>$ </span><Typed text="git push --force origin main" start={S(4.6)} /></div>
+      <Verdict delay={S(5.9)} color={AMBER} label="ASK" detail="risk 2.0 / 3 · approval p=0.96 → the user gets a prompt" />
+      <div><span style={{ color: DIM }}>$ </span><Typed text="rm -rf ~/" start={S(6.8)} /></div>
+      <Verdict delay={S(8.0)} color={RED} label="DENY" detail="risk 3.0 / 3 · confidence 0.99 → blocked before it runs" />
+      <Pop delay={S(9.6)} style={{ color: DIM, fontSize: 26, marginTop: 6 }}>≈ 0.6 s and $0.00004 per call — cheap enough to check every single one.</Pop>
     </Pop>
   </AbsoluteFill>
 );
 
 const After = () => {
   const frame = useCurrentFrame();
-  const hl = interpolate(frame, [S(2.2), S(2.8)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const hl = interpolate(frame, [S(5.0), S(5.6)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <AbsoluteFill>
       <Header kicker="After a tool returns" title="Prompt injection and canaries get flagged, not followed." />
@@ -88,7 +89,7 @@ const After = () => {
           Requirements: 5+ years with Rust or Go…
         </div>
       </Pop>
-      <Pop delay={S(3.2)} style={{ position: "absolute", top: 300, left: 1180, right: 140, background: INK, borderRadius: 24, padding: "36px 40px", fontFamily: SANS, color: FG }}>
+      <Pop delay={S(6.8)} style={{ position: "absolute", top: 300, left: 1180, right: 140, background: INK, borderRadius: 24, padding: "36px 40px", fontFamily: SANS, color: FG }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ background: RED, color: "#fff", fontWeight: 800, fontSize: 24, padding: "8px 18px", borderRadius: 10, letterSpacing: 2 }}>FLAGGED</div>
           <div style={{ fontFamily: MONO, fontSize: 26, color: DIM }}>canary · p=0.97</div>
@@ -108,12 +109,12 @@ const Works = () => (
     <Header kicker="Works with" title="One core. Every harness you already use." />
     <div style={{ position: "absolute", top: 380, left: 140, right: 140, display: "flex", flexWrap: "wrap", gap: 28 }}>
       {CHIPS.map((c, i) => (
-        <Pop key={c} delay={12 + i * 6} style={{ background: "#F1F5F9", color: INK, fontFamily: SANS, fontWeight: 700, fontSize: 44, padding: "22px 44px", borderRadius: 999, display: "flex", alignItems: "center", gap: 18 }}>
+        <Pop key={c} delay={S(1.0 + i * 0.8)} style={{ background: "#F1F5F9", color: INK, fontFamily: SANS, fontWeight: 700, fontSize: 44, padding: "22px 44px", borderRadius: 999, display: "flex", alignItems: "center", gap: 18 }}>
           <span style={{ color: BLUE, fontSize: 40 }}>✓</span>{c}
         </Pop>
       ))}
     </div>
-    <Pop delay={S(3.2)} style={{ position: "absolute", left: 140, bottom: 140, fontFamily: SANS, color: DIM, fontSize: 32, lineHeight: 1.5 }}>
+    <Pop delay={S(7.2)} style={{ position: "absolute", left: 140, bottom: 140, fontFamily: SANS, color: DIM, fontSize: 32, lineHeight: 1.5 }}>
       Hooks for Claude Code, Codex, Copilot and Gemini · a pi extension · an OpenCode plugin · an ACP proxy for Zed and JetBrains.
     </Pop>
   </AbsoluteFill>
@@ -122,11 +123,11 @@ const Works = () => (
 const Install = () => (
   <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
     <Pop style={{ background: INK, borderRadius: 24, padding: "48px 64px", fontFamily: MONO, fontSize: 40, color: FG, lineHeight: 1.6, minWidth: 1100 }}>
-      <div><span style={{ color: DIM }}>$ </span><Typed text="npm i -g jev-guard" start={S(0.4)} /></div>
-      <div><span style={{ color: DIM }}>$ </span><Typed text="jev-guard key ‹your Jev key›" start={S(1.4)} /></div>
-      <div><span style={{ color: DIM }}>$ </span><Typed text="jev-guard install claude" start={S(2.7)} /></div>
+      <div><span style={{ color: DIM }}>$ </span><Typed text="npm i -g jev-guard" start={S(0.3)} /></div>
+      <div><span style={{ color: DIM }}>$ </span><Typed text="jev-guard key ‹your Jev key›" start={S(1.7)} /></div>
+      <div><span style={{ color: DIM }}>$ </span><Typed text="jev-guard install claude" start={S(3.1)} /></div>
     </Pop>
-    <Pop delay={S(4.2)} style={{ display: "flex", alignItems: "center", gap: 24, marginTop: 56 }}>
+    <Pop delay={S(4.9)} style={{ display: "flex", alignItems: "center", gap: 24, marginTop: 56 }}>
       <Img src={staticFile("icon.svg")} style={{ width: 72 }} />
       <div style={{ fontFamily: SANS, color: "#fff", fontSize: 44, fontWeight: 700 }}>github.com/leepokai/jev-guard</div>
     </Pop>
@@ -139,7 +140,12 @@ export const Launch = () => {
   const scene = (key: keyof typeof SCENES, node: React.ReactNode) => {
     const from = at;
     at += SCENES[key];
-    return <Sequence key={key} from={from} durationInFrames={SCENES[key]}><Fade len={SCENES[key]}>{node}</Fade></Sequence>;
+    return (
+      <Sequence key={key} from={from} durationInFrames={SCENES[key]}>
+        <Audio src={staticFile(`vo/${key}.mp3`)} />
+        <Fade len={SCENES[key]}>{node}</Fade>
+      </Sequence>
+    );
   };
   return (
     <AbsoluteFill style={{ background: BG }}>
