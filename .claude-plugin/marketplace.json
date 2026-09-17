@@ -1,7 +1,14 @@
 {
   "name": "jev-guard",
-  "owner": { "name": "leepokai" },
+  "owner": {
+    "name": "leepokai"
+  },
+  "description": "jev-guard: a Jev-powered security hook that denies destructive tool calls, asks approval for risky ones, and flags prompt injection in tool results.",
   "plugins": [
-    { "name": "jev-guard", "source": "./", "description": "Prompt-injection and dangerous-action guard for coding agents, powered by Jev." }
+    {
+      "name": "jev-guard",
+      "source": "./",
+      "description": "Prompt-injection and dangerous-action guard for coding agents, powered by Jev."
+    }
   ]
 }
