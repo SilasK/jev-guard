@@ -9,7 +9,7 @@
       "name": "jev-guard",
       "source": "./",
       "description": "Prompt-injection and dangerous-action guard for coding agents, powered by Jev.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     }
   ]
 }
