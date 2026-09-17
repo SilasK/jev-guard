@@ -172,7 +172,10 @@ test("install writes valid config for every target", async () => {
     execFileSync(process.execPath, ["src/cli.js", "install", target], { env: { ...process.env, HOME: home }, cwd: new URL("..", import.meta.url).pathname });  // idempotent
     const text = readFileSync(join(home, rel), "utf8");
     assert.ok(existsSync(join(home, rel)) && text.includes("jev-guard"), target);
-    if (rel.endsWith(".json")) assert.equal((JSON.stringify(JSON.parse(text)).match(/jev-guard/g) ?? []).length <= 8, true, `${target} duplicated entries`);
+    if (rel.endsWith(".json")) {  // idempotent: exactly one jev-guard entry per event, whatever the checkout path looks like
+      const cfg = JSON.parse(text);
+      for (const [ev, groups] of Object.entries(cfg.hooks ?? {})) assert.equal(groups.filter((g) => JSON.stringify(g).includes("jev-guard")).length, 1, `${target} ${ev} duplicated`);
+    }
   }
   const cursor = JSON.parse(readFileSync(join(home, files.cursor), "utf8"));
   assert.equal(cursor.hooks.beforeShellExecution.length, 1);
