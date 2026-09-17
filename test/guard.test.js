@@ -248,6 +248,11 @@ test("scan-skills: sweeps instruction files, caches by hash, exits 2 when flagge
   const second = await scanFiles(files, { env, fetchImpl });
   assert.ok(second.every((r) => r.cached));
   assert.ok(JSON.stringify(JSON.parse(readFileSync(join(home, "cache.json"), "utf8"))).includes("exfiltration"));
+  const { judgeInstructions } = await import("../src/guard.js");
+  assert.equal(judgeInstructions("unrelated_side_effects", 0.73), false);   // the gstack false-positive band
+  assert.equal(judgeInstructions("unrelated_side_effects", 0.85), true);
+  assert.equal(judgeInstructions("canary", 0.51), true);
+  assert.equal(judgeInstructions("clean", 0.99), false);
 
   // Claude-style transcript: tool results are not user words
   const t = join(home, "t.jsonl");

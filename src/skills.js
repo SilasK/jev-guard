@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { INSTRUCTION_FILE, scanInstructions } from "./guard.js";
+import { INSTRUCTION_FILE, judgeInstructions, scanInstructions, thresholds } from "./guard.js";
 
 const CACHE = () => process.env.JEV_GUARD_SCAN_CACHE ?? join(homedir(), ".jev-guard", "scan-cache.json");
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", "out", "logos", "video", ".tmp", "tmp", "worktrees", "vendor_imports", "marketplaces", "repos"]);
@@ -34,6 +34,7 @@ export function findInstructionFiles(roots) {
 /** @returns {Promise<Array<{file: string, flagged: boolean, kind?: string, p?: number, cached: boolean, error?: string}>>} */
 export async function scanFiles(files, opts = {}, { concurrency = 6 } = {}) {
   const cache = readCache();
+  const t = thresholds(opts.env ?? process.env);
   const results = [];
   let dirty = false;
   const queue = [...files];
@@ -43,12 +44,13 @@ export async function scanFiles(files, opts = {}, { concurrency = 6 } = {}) {
       try { text = readFileSync(file, "utf8"); } catch (e) { results.push({ file, flagged: false, cached: false, error: e.message }); continue; }
       if (text.length < 200) continue;
       const key = createHash("sha1").update(text).digest("hex");
-      if (cache[key]) { results.push({ file, ...cache[key], cached: true }); continue; }
+      // the cache keeps Jev's answer (kind, p); the verdict is recomputed so threshold changes apply to old scans
+      if (cache[key]) { results.push({ file, ...cache[key], flagged: judgeInstructions(cache[key].kind, cache[key].p, t), cached: true }); continue; }
       try {
         const r = await scanInstructions({ text, source: file }, opts);
-        const entry = { flagged: r.flagged, kind: r.kind, p: +r.p.toFixed(2), message: r.message, at: Date.now() };
+        const entry = { kind: r.kind, p: +r.p.toFixed(2), at: Date.now() };
         cache[key] = entry; dirty = true;
-        results.push({ file, ...entry, cached: false });
+        results.push({ file, ...entry, flagged: r.flagged, message: r.message, cached: false });
         if (++scanned % 25 === 0) writeCache(cache);  // an interrupted sweep keeps what it paid for
       } catch (e) { results.push({ file, flagged: false, cached: false, error: e.message }); }
     }

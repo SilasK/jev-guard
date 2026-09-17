@@ -31,7 +31,7 @@ export async function ask(state, questions, { env = process.env, fetchImpl = fet
   if (!b) throw new Error("no credentials: run `jev-guard key <key>` or set JEV_API_KEY / AI_GATEWAY_API_KEY");
   const gw = b.kind === "gateway";
   const q = gw ? mapValues(questions, (x) => (x.type === "noul" ? { ...x, type: "boolean" } : x)) : questions;
-  const res = await fetchImpl(gw ? GATEWAY_URL : TYPESAFE_URL, {
+  const request = () => fetchImpl(gw ? GATEWAY_URL : TYPESAFE_URL, {
     method: "POST",
     headers: gw
       ? { Authorization: `Bearer ${b.key}`, "Content-Type": "application/json", "ai-gateway-protocol-version": "0.0.1",
@@ -42,6 +42,11 @@ export async function ask(state, questions, { env = process.env, fetchImpl = fet
       : { state, model: env.JEV_MODEL ?? "jev-latest", questions: q }),
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
   });
+  let res = await request();
+  for (let attempt = 0; (res.status === 429 || res.status >= 500) && attempt < 2; attempt++) {  // overloaded / rate-limited: brief backoff
+    await new Promise((r) => setTimeout(r, 600 * 2 ** attempt));
+    res = await request();
+  }
   if (!res.ok) throw new Error(`${b.kind} HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const body = await res.json();
   const conf = body.providerMetadata?.typesafe?.confidence ?? {};
