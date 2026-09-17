@@ -48,10 +48,12 @@ export const ACTION_QUESTIONS = {
 };
 
 // Tools whose calls are never worth a Jev round-trip (read-only), and whose results are never external content.
-const READ_ONLY = new Set(["read", "glob", "grep", "ls", "find", "webfetch", "websearch", "todowrite", "todoread", "askuserquestion", "exitplanmode",
-  "notebookread", "listmcpresourcestool", "readmcpresourcetool", "toolsearch", "skill", "task", "agent", "tabs_context_mcp", "read_page", "get_page_text"]);
-const NEVER_EXTERNAL = new Set(["edit", "write", "multiedit", "notebookedit", "apply_patch", "glob", "grep", "ls", "find", "todowrite", "todoread",
-  "askuserquestion", "exitplanmode", "task", "agent"]);
+// Names as each agent reports them: Claude/Codex/Copilot (Read, Bash…), pi/OpenCode (read, bash, list…), Gemini (read_file, run_shell_command…), Cursor (Shell, Delete, MCP:x).
+const READ_ONLY = new Set(["read", "glob", "grep", "ls", "list", "find", "webfetch", "websearch", "todowrite", "todoread", "askuserquestion", "exitplanmode",
+  "notebookread", "listmcpresourcestool", "readmcpresourcetool", "toolsearch", "skill", "task", "agent", "tabs_context_mcp", "read_page", "get_page_text",
+  "read_file", "read_many_files", "list_directory", "search_file_content", "grep_search", "google_web_search", "web_fetch", "write_todos"]);
+const NEVER_EXTERNAL = new Set(["edit", "write", "multiedit", "notebookedit", "apply_patch", "patch", "delete", "glob", "grep", "ls", "list", "find", "todowrite", "todoread",
+  "askuserquestion", "exitplanmode", "task", "agent", "write_file", "replace", "write_todos"]);
 export const MIN_SCAN_CHARS = 200;
 const MAX_STATE_CHARS = 60_000; // Jev's state ceiling is ~32k tokens
 

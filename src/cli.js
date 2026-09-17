@@ -9,13 +9,15 @@ const [cmd, ...rest] = process.argv.slice(2);
 
 const USAGE = `jev-guard — prompt-injection and dangerous-action guard for coding agents, powered by Jev
 
-  jev-guard hook [--agent claude|codex]   Claude Code / Codex command hook (JSON on stdin → JSON on stdout)
+  jev-guard hook [--agent codex|copilot]  Command hook (JSON on stdin → JSON on stdout); Claude Code, Codex, Copilot CLI,
+                                          Gemini CLI and Cursor payloads are told apart by their event name
   jev-guard acp -- <agent command...>     ACP proxy: jev-guard acp -- claude-agent-acp
   jev-guard check <tool> '<json input>'   Assess one tool call, e.g. check Bash '{"command":"rm -rf /"}'
   jev-guard scan [file]                   Scan a file (or stdin) for AI-directed instructions
-  jev-guard install claude|codex|pi       Register the hook/extension in that agent's user config
+  jev-guard install <agent>               Register in that agent's user config:
+                                          claude | codex | copilot | gemini | cursor | pi | opencode
 
-Credentials: JEV_API_KEY (console.typesafe.ai) or AI_GATEWAY_API_KEY (Vercel AI Gateway).`;
+Credentials: JEV_API_KEY (console.typesafe.ai), or AI_GATEWAY_API_KEY / VERCEL_OIDC_TOKEN (Vercel AI Gateway).`;
 
 switch (cmd) {
   case "hook": {
@@ -55,24 +57,64 @@ switch (cmd) {
 
 function install(target) {
   const cli = join(ROOT, "src", "cli.js");
-  const entry = (extra) => ({ matcher: ".*", hooks: [{ type: "command", command: `node "${cli}" hook${extra}`, timeout: 30 }] });
+  const cmd = (extra = "") => `node "${cli}" hook${extra}`;
   const notOurs = (list) => (list ?? []).filter((g) => !JSON.stringify(g).includes("jev-guard"));
-  if (target === "claude" || target === "codex") {
-    const file = target === "claude" ? join(homedir(), ".claude", "settings.json") : join(homedir(), ".codex", "hooks.json");
-    const cfg = readJson(file);
-    cfg.hooks ??= {};
-    const extra = target === "codex" ? " --agent codex" : "";
-    for (const ev of ["PreToolUse", "PostToolUse"]) cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), entry(extra)];
-    writeJson(file, cfg);
-    console.log(`jev-guard: hooks written to ${file}${target === "codex" ? "\nRun /hooks inside Codex to trust them." : ""}`);
-  } else if (target === "pi") {
-    const file = join(homedir(), ".pi", "agent", "settings.json");
-    const cfg = readJson(file);
-    const ext = join(ROOT, "extensions", "jev-guard.ts");
-    cfg.extensions = [...(cfg.extensions ?? []).filter((p) => !p.includes("jev-guard")), ext];
-    writeJson(file, cfg);
-    console.log(`jev-guard: extension registered in ${file}`);
-  } else die("install target must be claude, codex or pi (ACP is configured in the editor: see README)");
+  const home = homedir();
+  let file, cfg, note = "";
+  switch (target) {
+    case "claude":
+    case "codex": {  // same group shape; Codex has no PreToolUse "ask" yet, so the flag switches ask → warning
+      file = target === "claude" ? join(home, ".claude", "settings.json") : join(home, ".codex", "hooks.json");
+      cfg = readJson(file);
+      cfg.hooks ??= {};
+      const entry = { matcher: ".*", hooks: [{ type: "command", command: cmd(target === "codex" ? " --agent codex" : ""), timeout: 30 }] };
+      for (const ev of ["PreToolUse", "PostToolUse"]) cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), entry];
+      if (target === "codex") note = "Run /hooks inside Codex to trust them.";
+      break;
+    }
+    case "copilot": {  // PascalCase event names give the Claude-shaped payload; output fields are top-level
+      file = join(home, ".copilot", "hooks", "jev-guard.json");
+      cfg = { version: 1, hooks: {} };
+      for (const ev of ["PreToolUse", "PostToolUse"]) cfg.hooks[ev] = [{ type: "command", bash: cmd(" --agent copilot"), timeoutSec: 30 }];
+      break;
+    }
+    case "gemini": {
+      file = join(home, ".gemini", "settings.json");
+      cfg = readJson(file);
+      cfg.hooks ??= {};
+      const entry = { hooks: [{ name: "jev-guard", type: "command", command: cmd(), timeout: 30_000 }] };
+      for (const ev of ["BeforeTool", "AfterTool"]) cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), entry];
+      break;
+    }
+    case "cursor": {  // beforeShell/MCP enforce "ask"; preToolUse only for the remaining mutating tools
+      file = join(home, ".cursor", "hooks.json");
+      cfg = readJson(file);
+      cfg.version ??= 1;
+      cfg.hooks ??= {};
+      const add = (ev, extra = {}) => (cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), { command: cmd(), timeout: 30, ...extra }]);
+      add("beforeShellExecution"); add("beforeMCPExecution"); add("preToolUse", { matcher: "Write|Delete" }); add("postToolUse");
+      break;
+    }
+    case "pi": {
+      file = join(home, ".pi", "agent", "settings.json");
+      cfg = readJson(file);
+      const ext = join(ROOT, "extensions", "jev-guard.ts");
+      cfg.extensions = [...(cfg.extensions ?? []).filter((p) => !p.includes("jev-guard")), ext];
+      break;
+    }
+    case "opencode": {  // local plugin files are loaded as-is, so the shim just re-exports from this checkout
+      file = join(home, ".config", "opencode", "plugins", "jev-guard.js");
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, `export { JevGuard } from ${JSON.stringify(join(ROOT, "src", "opencode.js"))};\n`);
+      note = 'For approval prompts, set "permission": { "bash": "ask" } in opencode.json; jev-guard then auto-approves the safe calls.';
+      console.log(`jev-guard: plugin shim written to ${file}${note ? "\n" + note : ""}`);
+      return;
+    }
+    default:
+      die("install target must be one of claude, codex, copilot, gemini, cursor, pi, opencode (ACP is configured in the editor: see README)");
+  }
+  writeJson(file, cfg);
+  console.log(`jev-guard: written to ${file}${note ? "\n" + note : ""}`);
 }
 
 function readJson(file) { return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}; }
