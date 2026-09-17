@@ -14,6 +14,9 @@ const USAGE = `jev-guard — prompt-injection and dangerous-action guard for cod
   jev-guard acp -- <agent command...>     ACP proxy: jev-guard acp -- claude-agent-acp
   jev-guard check <tool> '<json input>'   Assess one tool call, e.g. check Bash '{"command":"rm -rf /"}'
   jev-guard scan [file]                   Scan a file (or stdin) for AI-directed instructions
+  jev-guard scan-skills [paths...]        Sweep skills, plugins, rules and CLAUDE.md/AGENTS.md files (default: every
+                                          agent's user dirs + the current project) for instructions their installer
+                                          would not expect; cached by content hash, exit 2 if anything is flagged
   jev-guard install <agent>               Register in that agent's user config:
                                           claude | codex | copilot | gemini | cursor | pi | opencode
   jev-guard key <api key>                 Save the key to ~/.jev-guard/config.json (0600); vck_… keys are
@@ -47,6 +50,20 @@ switch (cmd) {
     const r = await scanContent({ text, tool: "scan", source: rest[0] }).catch((e) => die(`${e.message} (exit 3)`, 3));
     console.log(r ? `${r.flagged ? "FLAGGED" : "CLEAN"}  ${r.message}` : "SKIPPED  too short to scan");
     process.exitCode = r?.flagged ? 2 : 0;
+    break;
+  }
+  case "scan-skills": {
+    const { findInstructionFiles, projectRoots, scanFiles, userRoots } = await import("./skills.js");
+    const roots = rest.length ? rest.map((r) => resolve(r)) : [...userRoots(), ...projectRoots()];
+    const files = findInstructionFiles(roots);
+    if (!files.length) { console.log("jev-guard: no instruction files found"); break; }
+    process.stderr.write(`jev-guard: scanning ${files.length} instruction files…\n`);
+    const results = await scanFiles(files);
+    const flagged = results.filter((r) => r.flagged), errors = results.filter((r) => r.error);
+    for (const r of flagged) console.log(`FLAGGED  ${r.file}\n         ${r.kind.replace("_", " ")} p=${r.p}${r.cached ? " (cached)" : ""}`);
+    for (const r of errors) console.log(`ERROR    ${r.file}: ${r.error}`);
+    console.log(`${results.length} scanned (${results.filter((r) => r.cached).length} cached), ${flagged.length} flagged, ${errors.length} errors`);
+    process.exitCode = flagged.length ? 2 : errors.length ? 3 : 0;
     break;
   }
   case "install":
@@ -83,14 +100,15 @@ function install(target) {
       cfg = readJson(file);
       cfg.hooks ??= {};
       const entry = { matcher: ".*", hooks: [{ type: "command", command: cmd(target === "codex" ? " --agent codex" : ""), timeout: 30 }] };
-      for (const ev of ["PreToolUse", "PostToolUse"]) cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), entry];
+      const events = ["PreToolUse", "PostToolUse", "UserPromptSubmit", "SessionStart", ...(target === "claude" ? ["InstructionsLoaded"] : [])];
+      for (const ev of events) cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), entry];
       if (target === "codex") note = "Run /hooks inside Codex to trust them.";
       break;
     }
     case "copilot": {  // PascalCase event names give the Claude-shaped payload; output fields are top-level
       file = join(home, ".copilot", "hooks", "jev-guard.json");
       cfg = { version: 1, hooks: {} };
-      for (const ev of ["PreToolUse", "PostToolUse"]) cfg.hooks[ev] = [{ type: "command", bash: cmd(" --agent copilot"), timeoutSec: 30 }];
+      for (const ev of ["PreToolUse", "PostToolUse", "UserPromptSubmit", "SessionStart"]) cfg.hooks[ev] = [{ type: "command", bash: cmd(" --agent copilot"), timeoutSec: 30 }];
       break;
     }
     case "gemini": {
@@ -98,7 +116,7 @@ function install(target) {
       cfg = readJson(file);
       cfg.hooks ??= {};
       const entry = { hooks: [{ name: "jev-guard", type: "command", command: cmd(), timeout: 30_000 }] };
-      for (const ev of ["BeforeTool", "AfterTool"]) cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), entry];
+      for (const ev of ["BeforeTool", "AfterTool", "BeforeAgent", "SessionStart"]) cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), entry];
       break;
     }
     case "cursor": {  // beforeShell/MCP enforce "ask"; preToolUse only for the remaining mutating tools
@@ -108,6 +126,7 @@ function install(target) {
       cfg.hooks ??= {};
       const add = (ev, extra = {}) => (cfg.hooks[ev] = [...notOurs(cfg.hooks[ev]), { command: cmd(), timeout: 30, ...extra }]);
       add("beforeShellExecution"); add("beforeMCPExecution"); add("preToolUse", { matcher: "Write|Delete" }); add("postToolUse");
+      add("beforeSubmitPrompt"); add("sessionStart");
       break;
     }
     case "pi": {

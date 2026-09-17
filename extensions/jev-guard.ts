@@ -1,13 +1,20 @@
 // pi extension: block/confirm dangerous tool calls, flag AI-directed text in tool results.
 // Load with `pi -e ./extensions/jev-guard.ts`, `jev-guard install pi`, or `pi install git:github.com/leepokai/jev-guard`.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { assessAction, scanContent, collectText } from "../src/guard.js";
+import { assessAction, scanContent, scanInstructions, collectText, excerpt, INSTRUCTION_FILE } from "../src/guard.js";
+import { buildContext, messagesFrom } from "../src/context.js";
+import { readSession, remember } from "../src/session.js";
 
 export default function (pi: ExtensionAPI) {
+  const sessionId = (ctx: any) => ctx.sessionManager?.getSessionId?.();
+  const context = (ctx: any) =>
+    buildContext({ sessionId: sessionId(ctx), messages: messagesFrom(ctx.sessionManager?.getBranch?.() ?? []) });
+
   pi.on("tool_call", async (event, ctx) => {
     let r;
     try {
-      r = await assessAction({ tool: event.toolName, input: event.input, cwd: ctx.cwd, agent: "pi" }, { signal: ctx.signal });
+      r = await assessAction({ tool: event.toolName, input: event.input, cwd: ctx.cwd, agent: "pi", context: context(ctx) }, { signal: ctx.signal });
+      if (r) remember(sessionId(ctx), "calls", { tool: event.toolName, preview: JSON.stringify(event.input).slice(0, 100), level: r.level });
     } catch (err) {
       ctx.ui.notify(`jev-guard: ${(err as Error).message}`, "warning");
       return process.env.JEV_GUARD_FAIL_CLOSED ? { block: true, reason: `jev-guard unavailable: ${(err as Error).message}` } : undefined;
@@ -22,7 +29,12 @@ export default function (pi: ExtensionAPI) {
   pi.on("tool_result", async (event, ctx) => {
     let r;
     try {
-      r = await scanContent({ text: collectText(event.content), tool: event.toolName, source: (event.input as any)?.url ?? (event.input as any)?.path }, { signal: ctx.signal });
+      const source = (event.input as any)?.url ?? (event.input as any)?.path;
+      const text = collectText(event.content);
+      r = source && INSTRUCTION_FILE.test(source)
+        ? await scanInstructions({ text, source }, { signal: ctx.signal })
+        : await scanContent({ text, tool: event.toolName, source, task: readSession(sessionId(ctx)).prompts.at(-1)?.text }, { signal: ctx.signal });
+      if (r?.flagged) remember(sessionId(ctx), "flags", { kind: r.kind, source, tool: event.toolName, p: +r.p.toFixed(2), excerpt: excerpt(text), reported: true });
     } catch (err) {
       ctx.ui.notify(`jev-guard: ${(err as Error).message}`, "warning");
       return;

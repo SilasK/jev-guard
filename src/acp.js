@@ -4,7 +4,9 @@
 // back. Tools the agent runs on its own (its built-in web fetch, say) never pass through here and are not covered.
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { assessAction, scanContent, preview, MIN_SCAN_CHARS } from "./guard.js";
+import { assessAction, scanContent, scanInstructions, preview, excerpt, INSTRUCTION_FILE, MIN_SCAN_CHARS } from "./guard.js";
+import { buildContext } from "./context.js";
+import { remember } from "./session.js";
 
 export function runProxy(cmd, args, { stdin = process.stdin, stdout = process.stdout, env = process.env, fetchImpl, onExit = (c) => process.exit(c) } = {}) {
   const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"], env });
@@ -16,6 +18,7 @@ export function runProxy(cmd, args, { stdin = process.stdin, stdout = process.st
   let seq = 0;
   const ours = new Map();      // id of a request we sent to the client → resolve
   const agentReqs = new Map(); // id of an agent→client request we forwarded → method
+  const intents = new Map();   // sessionId → the agent's current message text, rebuilt from agent_message_chunk updates
 
   function askClient(method, params) {
     const id = `jev-guard:${++seq}`;
@@ -23,10 +26,16 @@ export function runProxy(cmd, args, { stdin = process.stdin, stdout = process.st
   }
 
   async function fromAgent(msg) {
+    if (msg.method === "session/update") {        // notification: keep the agent's latest words per session
+      const u = msg.params?.update ?? {};
+      const sid = msg.params?.sessionId;
+      if (u.sessionUpdate === "agent_message_chunk" && u.content?.type === "text") intents.set(sid, (intents.get(sid) ?? "") + u.content.text);
+      if (u.sessionUpdate === "tool_call") remember(sid, "calls", { tool: u.name ?? u.kind ?? "tool", preview: preview(u.rawInput ?? u.title ?? "", 100) });
+    }
     if (msg.method && msg.id !== undefined) {   // request agent → client
       const rejection = await guardRequest(msg);
       if (rejection) return toAgent(rejection);
-      agentReqs.set(msg.id, msg.method);
+      agentReqs.set(msg.id, { method: msg.method, req: msg });
     }
     toClient(msg);
   }
@@ -38,8 +47,10 @@ export function runProxy(cmd, args, { stdin = process.stdin, stdout = process.st
     else if (msg.method === "fs/write_text_file") { tool = "Write"; input = { file_path: p.path, content: p.content }; kind = "edit"; }
     else return null;
     let r;
-    try { r = await assessAction({ tool, input, cwd: p.cwd, agent: "acp" }, opts); }
+    const context = buildContext({ sessionId: p.sessionId, intent: intents.get(p.sessionId)?.slice(-1500) });
+    try { r = await assessAction({ tool, input, cwd: p.cwd, agent: "acp", context }, opts); }
     catch (err) { warn(err); if (!env.JEV_GUARD_FAIL_CLOSED) return null; r = { level: "deny", message: `jev-guard unavailable: ${err.message}` }; }
+    if (r) remember(p.sessionId, "calls", { tool, preview: preview(input, 100), level: r.level });
     if (!r || r.level === "allow") return null;
     if (r.level === "ask") {
       const res = await askClient("session/request_permission", {
@@ -55,23 +66,35 @@ export function runProxy(cmd, args, { stdin = process.stdin, stdout = process.st
   }
 
   async function fromClient(msg) {
+    if (msg.method === "session/prompt") {       // the user's words, one entry per prompt; also resets the agent's running message
+      const sid = msg.params?.sessionId;
+      const text = (msg.params?.prompt ?? []).filter((b) => b?.type === "text").map((b) => b.text).join("\n");
+      if (text.trim()) remember(sid, "prompts", { text: text.slice(0, 2000) });
+      intents.set(sid, "");
+    }
     if (msg.id !== undefined && !msg.method) {   // response client → agent
       const mine = ours.get(msg.id);
       if (mine) { ours.delete(msg.id); return mine(msg); }
-      const method = agentReqs.get(msg.id);
+      const hit = agentReqs.get(msg.id);
       agentReqs.delete(msg.id);
-      if (method === "fs/read_text_file" || method === "terminal/output") await flagContent(msg, method);
+      if (hit?.method === "fs/read_text_file" || hit?.method === "terminal/output") await flagContent(msg, hit.method, hit.req);
     }
     toAgent(msg);
   }
 
-  async function flagContent(msg, method) {
+  async function flagContent(msg, method, req) {
     const key = method === "fs/read_text_file" ? "content" : "output";
     const text = msg.result?.[key];
     if (typeof text !== "string" || text.length < MIN_SCAN_CHARS) return;
+    const source = req?.params?.path ?? method;
     try {
-      const r = await scanContent({ text, tool: method, source: method }, opts);
-      if (r?.flagged) msg.result[key] = `[${r.message}]\n\n${text}`;
+      const r = source !== method && INSTRUCTION_FILE.test(source)
+        ? await scanInstructions({ text, source }, opts)
+        : await scanContent({ text, tool: method, source }, opts);
+      if (r?.flagged) {
+        remember(req?.params?.sessionId, "flags", { kind: r.kind, source, tool: method, p: +r.p.toFixed(2), excerpt: excerpt(text), reported: true });
+        msg.result[key] = `[${r.message}]\n\n${text}`;
+      }
     } catch (err) { warn(err); }
   }
 
