@@ -5,7 +5,6 @@
   <img src="assets/works-with.svg" alt="Works with Claude Code, Codex, Copilot CLI, Gemini CLI, Cursor, pi, OpenCode, ACP">
   <p>
     <a href="https://www.npmjs.com/package/jev-guard"><img src="https://img.shields.io/npm/v/jev-guard?color=2563EB&label=npm" alt="npm"></a>
-    <a href="https://github.com/leepokai/jev-guard/actions/workflows/ci.yml"><img src="https://github.com/leepokai/jev-guard/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
     <img src="https://img.shields.io/badge/node-%E2%89%A520.3-339933" alt="node 20.3+">
     <img src="https://img.shields.io/badge/dependencies-0-0F172A" alt="zero dependencies">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-64748B" alt="MIT"></a>
