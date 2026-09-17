@@ -3,6 +3,13 @@
   <h1>jev-guard</h1>
   <p><strong>A security hook for coding agents, powered by <a href="https://typesafe.ai/">Jev</a>.</strong></p>
   <img src="assets/works-with.svg" alt="Works with Claude Code, Codex, Copilot CLI, Gemini CLI, Cursor, pi, OpenCode, ACP">
+  <p>
+    <a href="https://www.npmjs.com/package/jev-guard"><img src="https://img.shields.io/npm/v/jev-guard?color=2563EB&label=npm" alt="npm"></a>
+    <a href="https://github.com/leepokai/jev-guard/actions/workflows/ci.yml"><img src="https://github.com/leepokai/jev-guard/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+    <img src="https://img.shields.io/badge/node-%E2%89%A520.3-339933" alt="node 20.3+">
+    <img src="https://img.shields.io/badge/dependencies-0-0F172A" alt="zero dependencies">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-64748B" alt="MIT"></a>
+  </p>
 </div>
 
 <div align="center">
@@ -31,7 +38,7 @@ Pick your agent; every row is one command, then give it a key.
 | Gemini CLI | `gemini extensions install https://github.com/leepokai/jev-guard` — it asks for the key on install | deny · ask → warning (no `ask` in `BeforeTool`) | flag |
 | Cursor | plugin manifest included for marketplaces; solo users: `jev-guard install cursor` | deny · **ask** for shell and MCP (`preToolUse` can't ask) | flag |
 | pi | `pi install npm:jev-guard` (or `git:github.com/leepokai/jev-guard`) | block · **confirm dialog** | flag |
-| OpenCode | `"plugin": ["jev-guard"]` in `opencode.json` | throw on deny · **ask** via `permission.ask` for tools you set to `"ask"` | flag |
+| OpenCode | `"plugin": ["jev-guard"]` in `opencode.json` (0.2.1+) | throw on deny · **ask** via `permission.ask` for tools you set to `"ask"` | flag |
 | ACP | editor runs `jev-guard acp -- <agent>` | reject · **permission request** for `terminal/create`, `fs/write_text_file` | flag `fs/read_text_file`, `terminal/output` |
 
 Everything else goes through the npm package:

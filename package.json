@@ -1,6 +1,6 @@
 {
   "name": "jev-guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Prompt-injection and dangerous-action guard for coding agents (Claude Code, Codex, pi, ACP), powered by Jev.",
   "type": "module",
   "bin": {
@@ -8,6 +8,7 @@
   },
   "exports": {
     ".": "./src/opencode.js",
+    "./server": "./src/opencode.js",
     "./guard": "./src/guard.js",
     "./jev": "./src/jev.js"
   },
@@ -68,5 +69,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://github.com/leepokai/jev-guard#readme"
+  "homepage": "https://github.com/leepokai/jev-guard#readme",
+  "main": "src/opencode.js",
+  "bugs": "https://github.com/leepokai/jev-guard/issues"
 }

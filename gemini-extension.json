@@ -1,6 +1,6 @@
 {
   "name": "jev-guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Prompt-injection and dangerous-action guard for coding agents, powered by Jev. Denies destructive tool calls, warns on risky ones, flags AI-directed text in tool results.",
   "settings": [
     { "name": "Jev API key", "description": "TypeSafe key from console.typesafe.ai (leave empty if you use the AI Gateway key).", "envVar": "JEV_API_KEY", "sensitive": true },
