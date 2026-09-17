@@ -37,5 +37,5 @@ export const JevGuard = async ({ client, directory }) => {
   };
 };
 
-// OpenCode's V1 plugin shape, so `"plugin": ["jev-guard"]` in opencode.json works straight from npm.
-export default { id: "jev-guard", server: JevGuard };
+// ponytail: no default export on purpose. OpenCode's older loader treats every export as a plugin function and
+// throws on an object; the newer loader only special-cases a default export. A single named function loads in both.

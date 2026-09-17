@@ -36,7 +36,7 @@ switch (cmd) {
   }
   case "check": {
     const { assessAction } = await import("./guard.js");
-    const r = await assessAction({ tool: rest[0], input: rest[1] ? JSON.parse(rest[1]) : {}, cwd: process.cwd() });
+    const r = await assessAction({ tool: rest[0], input: rest[1] ? JSON.parse(rest[1]) : {}, cwd: process.cwd() }).catch((e) => die(`${e.message} (exit 3)`, 3));
     console.log(r ? `${r.level.toUpperCase()}  ${r.message}` : "SKIPPED  read-only tool");
     process.exitCode = r?.level === "deny" ? 2 : r?.level === "ask" ? 1 : 0;
     break;
@@ -44,7 +44,7 @@ switch (cmd) {
   case "scan": {
     const { scanContent } = await import("./guard.js");
     const text = rest[0] ? readFileSync(rest[0], "utf8") : readFileSync(0, "utf8");
-    const r = await scanContent({ text, tool: "scan", source: rest[0] });
+    const r = await scanContent({ text, tool: "scan", source: rest[0] }).catch((e) => die(`${e.message} (exit 3)`, 3));
     console.log(r ? `${r.flagged ? "FLAGGED" : "CLEAN"}  ${r.message}` : "SKIPPED  too short to scan");
     process.exitCode = r?.flagged ? 2 : 0;
     break;
@@ -141,4 +141,4 @@ async function keyHint() {
 
 function readJson(file) { return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}; }
 function writeJson(file, obj) { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(obj, null, 2) + "\n"); }
-function die(msg) { console.error(`jev-guard: ${msg}\n\n${USAGE}`); process.exit(1); }
+function die(msg, code = 1) { console.error(`jev-guard: ${msg}${code === 1 ? `\n\n${USAGE}` : ""}`); process.exit(code); }
