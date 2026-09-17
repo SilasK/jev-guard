@@ -15,13 +15,15 @@
     "src",
     "extensions",
     "hooks",
-    "assets",
     "plugin.json",
     "gemini-extension.json",
     ".claude-plugin",
     ".codex-plugin",
     ".cursor-plugin",
-    ".agents"
+    ".agents",
+    "assets/icon.svg",
+    "assets/icon-512.png",
+    "assets/works-with.svg"
   ],
   "scripts": {
     "test": "node --test test/*.test.js"
