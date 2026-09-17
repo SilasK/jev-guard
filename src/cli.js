@@ -16,8 +16,10 @@ const USAGE = `jev-guard — prompt-injection and dangerous-action guard for cod
   jev-guard scan [file]                   Scan a file (or stdin) for AI-directed instructions
   jev-guard install <agent>               Register in that agent's user config:
                                           claude | codex | copilot | gemini | cursor | pi | opencode
+  jev-guard key <api key>                 Save the key to ~/.jev-guard/config.json (0600); vck_… keys are
+                                          treated as Vercel AI Gateway keys, anything else as TypeSafe
 
-Credentials: JEV_API_KEY (console.typesafe.ai), or AI_GATEWAY_API_KEY / VERCEL_OIDC_TOKEN (Vercel AI Gateway).`;
+Credentials are read from JEV_API_KEY / AI_GATEWAY_API_KEY / VERCEL_OIDC_TOKEN first, then from that file.`;
 
 switch (cmd) {
   case "hook": {
@@ -50,6 +52,17 @@ switch (cmd) {
   case "install":
     install(rest[0]);
     break;
+  case "key": {
+    const { CONFIG_FILE, readConfig } = await import("./jev.js");
+    const key = rest.find((a) => !a.startsWith("--"));
+    if (!key) die("key needs the API key as an argument");
+    const gateway = rest.includes("--gateway") || key.startsWith("vck_");
+    const cfg = { ...readConfig(), [gateway ? "aiGatewayApiKey" : "jevApiKey"]: key };
+    mkdirSync(dirname(CONFIG_FILE), { recursive: true, mode: 0o700 });
+    writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2) + "\n", { mode: 0o600 });
+    console.log(`jev-guard: ${gateway ? "Vercel AI Gateway" : "TypeSafe"} key saved to ${CONFIG_FILE}`);
+    break;
+  }
   default:
     console.log(USAGE);
     process.exitCode = cmd ? 1 : 0;
@@ -108,6 +121,7 @@ function install(target) {
       writeFileSync(file, `export { JevGuard } from ${JSON.stringify(join(ROOT, "src", "opencode.js"))};\n`);
       note = 'For approval prompts, set "permission": { "bash": "ask" } in opencode.json; jev-guard then auto-approves the safe calls.';
       console.log(`jev-guard: plugin shim written to ${file}${note ? "\n" + note : ""}`);
+      keyHint();
       return;
     }
     default:
@@ -115,6 +129,12 @@ function install(target) {
   }
   writeJson(file, cfg);
   console.log(`jev-guard: written to ${file}${note ? "\n" + note : ""}`);
+  keyHint();
+}
+
+async function keyHint() {
+  const { backend } = await import("./jev.js");
+  if (!backend()) console.log("No API key found yet: run `jev-guard key <key>` (or export JEV_API_KEY / AI_GATEWAY_API_KEY). Until then the guard fails open.");
 }
 
 function readJson(file) { return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}; }

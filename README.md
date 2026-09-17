@@ -18,27 +18,30 @@ Why Jev instead of an LLM: a call costs ~$0.00004 and returns in well under a se
 
 ```bash
 git clone https://github.com/leepokai/jev-guard ~/.jev-guard
-export JEV_API_KEY="…"                # from console.typesafe.ai
-# or AI_GATEWAY_API_KEY / VERCEL_OIDC_TOKEN   # Vercel AI Gateway, model typesafe-ai/jev
+node ~/.jev-guard/src/cli.js key "…"        # TypeSafe key from console.typesafe.ai, or a vck_… Vercel AI Gateway key
 
 node ~/.jev-guard/src/cli.js check Bash '{"command":"rm -rf ~/"}'
 # DENY  jev-guard blocked this call (risk 3.0/3, approval p=0.98, confidence 0.99): Bash rm -rf ~/ …
 ```
 
+### Where the key lives
+
+`jev-guard key` writes `~/.jev-guard/config.json` (mode 0600). Every adapter reads that file, so it works for GUI hosts (Cursor, Zed) that never see your shell profile. Environment variables win when present: `JEV_API_KEY`, `AI_GATEWAY_API_KEY`, or `VERCEL_OIDC_TOKEN` (from `vercel env pull`, expires in ~12 h). The key is sent only to `api.typesafe.ai` or `ai-gateway.vercel.sh`, never stored by jev-guard anywhere else, and never given to the coding agent.
+
 Then register it with your agent:
 
 | Agent | Install | Before a tool runs | After it returns |
 | --- | --- | --- | --- |
-| Claude Code | `install claude` (or `/plugin marketplace add leepokai/jev-guard`) | deny · **ask** prompt | flag |
+| Claude Code | `/plugin marketplace add leepokai/jev-guard` → `/plugin install jev-guard@jev-guard`, or `install claude` | deny · **ask** prompt | flag |
 | Codex | `install codex`, then `/hooks` to trust | deny · ask → warning (Codex has no `ask` yet) | flag |
 | Copilot CLI | `install copilot` | deny · **ask** prompt (`deny` in cloud agent) | flag |
 | Gemini CLI | `install gemini` | deny · ask → warning (no `ask` in `BeforeTool`) | flag |
 | Cursor | `install cursor` | deny · **ask** for shell and MCP (`preToolUse` can't ask) | flag |
-| pi | `install pi` or `pi install git:github.com/leepokai/jev-guard` | block · **confirm dialog** | flag |
+| pi | `pi install git:github.com/leepokai/jev-guard`, or `install pi` | block · **confirm dialog** | flag |
 | OpenCode | `install opencode` | throw on deny · **ask** via `permission.ask` for tools you set to `"ask"` | flag |
 | ACP | editor runs `jev-guard acp -- <agent>` | reject · **permission request** for `terminal/create`, `fs/write_text_file` | flag `fs/read_text_file`, `terminal/output` |
 
-(`install` is short for `node ~/.jev-guard/src/cli.js install`.)
+(`install` is short for `node ~/.jev-guard/src/cli.js install`.) Claude Code and pi can pull the plugin straight from GitHub; the other targets register hooks that point at your local clone, so keep it where you cloned it.
 
 `install` merges into that agent's user config (`~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.copilot/hooks/jev-guard.json`, `~/.gemini/settings.json`, `~/.cursor/hooks.json`, `~/.pi/agent/settings.json`, `~/.config/opencode/plugins/jev-guard.js`) and is idempotent. The hook itself is one script: the event name on stdin tells it which dialect it is speaking.
 
@@ -112,6 +115,7 @@ Results shorter than 200 characters and results of local edit/search tools are s
 | `JEV_GUARD_SKIP_SCAN` | | comma-separated tool names whose results are never scanned |
 | `JEV_GUARD_FAIL_CLOSED` | unset | if set, an unreachable Jev **denies** instead of allowing |
 | `JEV_MODEL` | `jev-latest` / `typesafe-ai/jev` | model id for the direct API / the gateway |
+| `JEV_GUARD_CONFIG` | `~/.jev-guard/config.json` | where `jev-guard key` stores the key |
 
 By default jev-guard fails **open** with a warning on stderr: a dead API must not freeze your agent. Flip it if you'd rather it did.
 
@@ -123,6 +127,7 @@ jev-guard acp -- <agent command...>     ACP proxy
 jev-guard check <tool> '<json input>'   Assess one tool call; exit 0 allow, 1 ask, 2 deny
 jev-guard scan [file]                   Scan a file or stdin; exit 2 if flagged
 jev-guard install <agent>               claude | codex | copilot | gemini | cursor | pi | opencode
+jev-guard key <api key>                 Save the key to ~/.jev-guard/config.json
 ```
 
 `check` and `scan` are handy in CI and for calibrating thresholds against your own examples.

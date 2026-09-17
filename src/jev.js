@@ -3,17 +3,32 @@
 const TYPESAFE_URL = "https://api.typesafe.ai/v1/systemone";
 const GATEWAY_URL = "https://ai-gateway.vercel.sh/v4/ai/evaluation-model";
 
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+export const CONFIG_FILE = join(homedir(), ".jev-guard", "config.json");
+
+// Env first (CLIs inherit the shell); then ~/.jev-guard/config.json written by `jev-guard key`, which is what
+// GUI hosts such as Cursor or Zed need since they don't see your shell profile.
 export function backend(env = process.env) {
   if (env.JEV_API_KEY) return { kind: "typesafe", key: env.JEV_API_KEY };
   if (env.AI_GATEWAY_API_KEY) return { kind: "gateway", key: env.AI_GATEWAY_API_KEY, auth: "api-key" };
   if (env.VERCEL_OIDC_TOKEN) return { kind: "gateway", key: env.VERCEL_OIDC_TOKEN, auth: "oidc" };  // `vercel env pull`; expires in ~12h
+  const cfg = readConfig(env);
+  if (cfg.jevApiKey) return { kind: "typesafe", key: cfg.jevApiKey };
+  if (cfg.aiGatewayApiKey) return { kind: "gateway", key: cfg.aiGatewayApiKey, auth: "api-key" };
   return null;
+}
+
+export function readConfig(env = process.env) {
+  try { return JSON.parse(readFileSync(env.JEV_GUARD_CONFIG ?? CONFIG_FILE, "utf8")); } catch { return {}; }
 }
 
 /** @returns {Promise<Record<string, {p?: number, choice?: string, score?: number, probabilities?: Record<string, number>, confidence?: number}>>} */
 export async function ask(state, questions, { env = process.env, fetchImpl = fetch, signal, timeoutMs = 20_000 } = {}) {
   const b = backend(env);
-  if (!b) throw new Error("no credentials: set JEV_API_KEY (console.typesafe.ai), AI_GATEWAY_API_KEY, or VERCEL_OIDC_TOKEN (Vercel AI Gateway)");
+  if (!b) throw new Error("no credentials: run `jev-guard key <key>` or set JEV_API_KEY / AI_GATEWAY_API_KEY");
   const gw = b.kind === "gateway";
   const q = gw ? mapValues(questions, (x) => (x.type === "noul" ? { ...x, type: "boolean" } : x)) : questions;
   const res = await fetchImpl(gw ? GATEWAY_URL : TYPESAFE_URL, {

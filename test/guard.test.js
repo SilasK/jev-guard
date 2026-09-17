@@ -163,3 +163,20 @@ test("install writes valid config for every target", async () => {
   assert.equal(cursor.hooks.beforeShellExecution.length, 1);
   assert.equal(cursor.hooks.preToolUse[0].matcher, "Write|Delete");
 });
+
+test("key: config file is read when env has no credentials", async () => {
+  const { mkdtempSync, readFileSync, statSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { execFileSync } = await import("node:child_process");
+  const { backend } = await import("../src/jev.js");
+  const home = mkdtempSync(join(tmpdir(), "jev-guard-key-"));
+  const cwd = new URL("..", import.meta.url).pathname;
+  execFileSync(process.execPath, ["src/cli.js", "key", "vck_abc"], { env: { ...process.env, HOME: home }, cwd });
+  execFileSync(process.execPath, ["src/cli.js", "key", "ts_xyz"], { env: { ...process.env, HOME: home }, cwd });
+  const file = join(home, ".jev-guard", "config.json");
+  assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { aiGatewayApiKey: "vck_abc", jevApiKey: "ts_xyz" });
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+  assert.deepEqual(backend({ JEV_GUARD_CONFIG: file }), { kind: "typesafe", key: "ts_xyz" });
+  assert.equal(backend({ JEV_GUARD_CONFIG: join(home, "missing.json") }), null);
+});
