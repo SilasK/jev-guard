@@ -24,7 +24,21 @@ Three checks, with the session's context:
 
 Works with **Claude Code**, **Codex**, **GitHub Copilot CLI**, **Gemini CLI**, **Cursor**, **pi**, **OpenCode**, and any **ACP** client/agent pair (Zed, JetBrains, …). One core, thin adapters. No build step, no dependencies.
 
-Why Jev instead of an LLM: a call costs ~$0.00004 and returns in well under a second with calibrated probabilities, so you can afford to run it on *every* tool call and result and threshold the answer in code.
+## Auto mode, for every coding agent
+
+Claude Code's [auto mode](https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode) is described as: *"A separate classifier model reviews actions before they run, blocking anything that escalates beyond your request, targets unrecognized infrastructure, or appears driven by hostile content Claude read."* That is exactly the job jev-guard does — as three typed questions to Jev (`risk`, `user_requested`, `from_untrusted`) instead of a proprietary classifier — and it does it for Codex, Copilot, Gemini, Cursor, pi, OpenCode and ACP editors too, with the same policy and the same session memory everywhere. If you want auto mode outside Claude Code, or a second opinion inside it, this is the build.
+
+### Why Jev: price and speed, with sources
+
+| | Figure | Source |
+| --- | --- | --- |
+| Price | **$0.042 per 1M input tokens, $0 output** — a typical jev-guard call is ~1k tokens, so **≈ $0.00004 per tool call**; a 1,000-call session is about 4 cents | [Vercel AI Gateway model card `typesafe-ai/jev`](https://vercel.com/ai-gateway/models/jev) (`GET https://ai-gateway.vercel.sh/v1/models` → `pricing.input: 0.000000042`) |
+| Price, relative | "100x cheaper" than running an LLM for the same judgment | [TypeSafe docs, example use cases](https://docs.typesafe.ai/concepts/use-case-map) |
+| Speed, claimed | "real-time speeds (150 ms)" | [TypeSafe docs, example use cases](https://docs.typesafe.ai/concepts/use-case-map) |
+| Speed, measured | direct API: **~0.75 s** wall per call from Taiwan, TLS and process start-up included; via the AI Gateway: p50 **~580 ms** over the 21-call calibration run below | this repo, 2026-09-17/18 |
+| Output | calibrated probabilities plus a confidence per answer, not prose to parse | [TypeSafe docs, Confidence](https://docs.typesafe.ai/confidence) |
+
+Those two numbers are the whole reason this design works: cheap enough to run on *every* tool call and *every* tool result, fast enough that the agent doesn't notice, and typed so the policy lives in twenty lines of code you can read.
 
 ## Install
 
