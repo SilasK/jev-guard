@@ -1,0 +1,13 @@
+{
+  "name": "laya-guard-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local HTTP server wrapping Laya (Jev-compatible System-1 model) for jev-guard fallback mode.",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@receptron/laya": "^0.1.2"
+  }
+}

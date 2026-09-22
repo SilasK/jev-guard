@@ -1,0 +1,16 @@
+[Unit]
+Description=Laya Guard classifier (local Jev-compatible System-1 model, ONNX)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/silask/GitHub/jev-guard/laya-server
+EnvironmentFile=-/home/silask/GitHub/jev-guard/laya-server/laya-guard.env
+ExecStart=/usr/bin/node /home/silask/GitHub/jev-guard/laya-server/server.mjs
+Restart=on-failure
+RestartSec=5
+MemoryMax=6G
+
+[Install]
+WantedBy=default.target

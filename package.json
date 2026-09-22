@@ -9,6 +9,10 @@
   "exports": {
     ".": "./src/opencode.js",
     "./server": "./src/opencode.js",
+    "./opencode-fallback": "./src/opencode-fallback.js",
+    "./classifier": "./src/classifier.js",
+    "./laya": "./src/laya.js",
+    "./laya-state": "./src/laya-state.js",
     "./guard": "./src/guard.js",
     "./jev": "./src/jev.js"
   },

@@ -87,6 +87,30 @@ jev-guard check Bash '{"command":"rm -rf ~/"}'
 
 The proxy only sees what passes through the client. Tools an agent runs on its own (a built-in web fetch, say) don't cross the wire and aren't covered — use that agent's native hooks for those.
 
+## Local Laya fallback mode (this fork)
+
+This fork adds an OpenCode adapter that runs on a **local, self-hosted Laya** classifier instead of the
+hosted Jev API, and consults it **only when OpenCode's native permission policy already says `ask`**.
+Native `allow` and `deny` are authoritative and never reach the model.
+
+```
+native allow -> run, no model call
+native deny  -> block, no model call
+native ask   -> Laya: deny -> block · allow -> run (allowlist only) · uncertain -> normal prompt
+```
+
+- Server + plugin: [`docs/laya-guard.md`](docs/laya-guard.md)
+- Why the state is a sentence, not the conversation, and which context slices help:
+  [`docs/laya-context.md`](docs/laya-context.md)
+- Making Laya accurate enough to trust: [`docs/laya-improvements.md`](docs/laya-improvements.md)
+- Collecting permission decisions and retraining Laya: [`docs/laya-retrain.md`](docs/laya-retrain.md)
+- Sharing one Laya server over LAN / Cloudflare: [`docs/laya-network.md`](docs/laya-network.md)
+
+The base Laya checkpoint is not accurate enough to auto-approve on its own (it rates `curl … | bash`
+as low harm), so auto-approval additionally requires a **code allowlist** of read-only-ish shell
+commands and refuses any command containing a shell control operator. Everything else keeps the human
+prompt. See the docs for the measurements behind that decision.
+
 ## How the decisions are made
 
 Jev is asked narrow, typed questions; the policy lives in code (`src/guard.js`).

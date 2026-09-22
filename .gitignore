@@ -4,3 +4,6 @@ node_modules/
 logos/
 video/node_modules/
 video/out/
+laya-server/node_modules/
+laya-server/*.log
+laya-server/laya-guard.env
