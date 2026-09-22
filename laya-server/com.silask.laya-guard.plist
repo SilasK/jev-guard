@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.silask.laya-guard</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>/Users/silas/GitHub/jev-guard/laya-server/server.mjs</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/silas/GitHub/jev-guard/laya-server</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/silas/Library/Logs/laya-guard.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/silas/Library/Logs/laya-guard.log</string>
+</dict>
+</plist>

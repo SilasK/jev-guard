@@ -39,9 +39,21 @@ function loadConfigFile(env) {
   }
 }
 
-/** Merge defaults < config file < env < plugin options. */
+// Secrets live here, never in the git-synced config: a local file that is merged over the shared
+// config. Keeps a strong token out of any repository.
+const LOCAL_CONFIG_FILE = join(homedir(), ".config", "opencode", "laya-guard.local.json");
+function loadLocalConfig(env) {
+  try {
+    return JSON.parse(readFileSync(env.LAYAGUARD_LOCAL_CONFIG ?? LOCAL_CONFIG_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+/** Merge defaults < shared config < local secret file < env < plugin options. */
 export function resolveConfig(options = {}, env = process.env) {
   const file = loadConfigFile(env);
+  const local = loadLocalConfig(env);
   const fromEnv = {};
   if (env.LAYAGUARD_MODE) fromEnv.mode = env.LAYAGUARD_MODE;
   if (env.LAYA_ENDPOINT) fromEnv.endpoint = env.LAYA_ENDPOINT;
@@ -49,6 +61,7 @@ export function resolveConfig(options = {}, env = process.env) {
   if (env.LAYAGUARD_AUDIT) fromEnv.auditLog = env.LAYAGUARD_AUDIT === "1" ? true : env.LAYAGUARD_AUDIT;
   if (env.LAYAGUARD_TOKEN) fromEnv.token = env.LAYAGUARD_TOKEN;
   if (env.LAYAGUARD_PASSWORD) fromEnv.password = env.LAYAGUARD_PASSWORD;
+  if (env.LAYAGUARD_FEEDBACK_TOKEN) fromEnv.feedbackToken = env.LAYAGUARD_FEEDBACK_TOKEN;
 
   const cfg = {
     mode: "fallback",
@@ -69,6 +82,7 @@ export function resolveConfig(options = {}, env = process.env) {
     repliesLog: DEFAULT_REPLIES,
     feedback: true,
     feedbackEndpoint: undefined,
+    feedbackToken: undefined,
     feedbackTimeoutMs: 1500,
     include: ["lastUser"],
     denyAt: 0.5,
@@ -76,12 +90,13 @@ export function resolveConfig(options = {}, env = process.env) {
     contextAllow: { enabled: true, maxHarm: 0.2, minTaskFit: 0.6, minUserAsked: 0.5 },
     hardSafety: { enabled: false, allowOnly: [] },
     ...file,
+    ...local,
     ...fromEnv,
     ...options,
   };
-  cfg.autoAllow = { enabled: true, patterns: DEFAULT_ALLOW, maxHarm: 0.2, minUserAsked: 0, readOnlyCommands: false, ...file.autoAllow, ...options.autoAllow };
-  cfg.contextAllow = { enabled: true, maxHarm: 0.2, minTaskFit: 0.6, minUserAsked: 0.5, ...file.contextAllow, ...options.contextAllow };
-  cfg.hardSafety = { enabled: false, allowOnly: [], ...file.hardSafety, ...options.hardSafety };
+  cfg.autoAllow = { enabled: true, patterns: DEFAULT_ALLOW, maxHarm: 0.2, minUserAsked: 0, readOnlyCommands: false, ...file.autoAllow, ...local.autoAllow, ...options.autoAllow };
+  cfg.contextAllow = { enabled: true, maxHarm: 0.2, minTaskFit: 0.6, minUserAsked: 0.5, ...file.contextAllow, ...local.contextAllow, ...options.contextAllow };
+  cfg.hardSafety = { enabled: false, allowOnly: [], ...file.hardSafety, ...local.hardSafety, ...options.hardSafety };
   return cfg;
 }
 
@@ -151,10 +166,13 @@ async function postFeedback(cfg, record) {
     appendJsonl(cfg.trainingLog, entry);
     return;
   }
+  // Feedback can go to a different server than /decide (e.g. decide locally on a Mac, centralize
+  // training data on the gamer), so it has its own optional credential.
+  const feedbackToken = cfg.feedbackToken ?? cfg.token;
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json", ...(cfg.token ? { authorization: `Bearer ${cfg.token}` } : {}) },
+      headers: { "content-type": "application/json", ...(feedbackToken ? { authorization: `Bearer ${feedbackToken}` } : {}) },
       body: JSON.stringify(entry),
       signal: AbortSignal.timeout(cfg.feedbackTimeoutMs ?? 1500),
     });

@@ -105,6 +105,7 @@ native ask   -> Laya: deny -> block · allow -> run (allowlist only) · uncertai
 - Making Laya accurate enough to trust: [`docs/laya-improvements.md`](docs/laya-improvements.md)
 - Collecting permission decisions and retraining Laya: [`docs/laya-retrain.md`](docs/laya-retrain.md)
 - Sharing one Laya server over LAN / Cloudflare: [`docs/laya-network.md`](docs/laya-network.md)
+- Running Laya locally on macOS: [`docs/laya-mac.md`](docs/laya-mac.md)
 
 The base Laya checkpoint is not accurate enough to auto-approve on its own (it rates `curl … | bash`
 as low harm), so auto-approval additionally requires a **code allowlist** of read-only-ish shell

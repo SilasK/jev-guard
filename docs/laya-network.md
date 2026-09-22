@@ -28,6 +28,11 @@ systemctl --user daemon-reload && systemctl --user restart laya-guard-server
 { "endpoint": "http://192.168.1.50:8790/decide", "token": "…same token…" }
 ```
 
+## Option C — run it locally (macOS)
+
+See [`laya-mac.md`](laya-mac.md): run the server on the Mac, decide locally, and still send training
+data to the central `/feedback` with `feedbackEndpoint` + `feedbackToken`.
+
 ## Option B — Cloudflare Tunnel (no open ports)
 
 You already run `cloudflared` here. Keep the server on loopback and expose it through a tunnel, so
