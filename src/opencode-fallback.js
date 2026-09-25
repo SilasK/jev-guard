@@ -13,10 +13,10 @@
 //
 // Config precedence: plugin options > environment > ~/.config/opencode/laya-guard.json > defaults.
 
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdir } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { LayaClassifier, OpenAICompatibleLocalClassifier, resolveDecision, applyHardSafetyRules, DEFAULT_ALLOW } from "./classifier.js";
 import { messagesFrom, slicesFrom, redactText, redact, clip } from "./laya-state.js";
@@ -28,7 +28,9 @@ const DEFAULT_REPLIES = join(homedir(), ".local", "state", "laya-guard", "replie
 
 const appendJsonl = (path, entry) => {
   if (!path) return;
-  appendFile(path, JSON.stringify(entry) + "\n").catch(() => {});
+  mkdir(dirname(path), { recursive: true })
+    .then(() => appendFile(path, JSON.stringify(entry) + "\n"))
+    .catch(() => {});
 };
 
 function loadConfigFile(env) {
